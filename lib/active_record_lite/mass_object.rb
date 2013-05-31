@@ -14,6 +14,7 @@ class MassObject
   end
 
   def self.parse_all(results)
+
   end
 
   def initialize(params = {})
