@@ -6,6 +6,7 @@ require 'active_support/inflector'
 
 class SQLObject < MassObject
   extend Searchable
+  extend Associatable
 
   def self.set_table_name(table_name)
     @current_table = table_name.underscore
@@ -27,7 +28,7 @@ class SQLObject < MassObject
 
 
     return_array = []
-    #p attributes
+
     all_hashes.each do |hash|
 
       attr_names = []
@@ -48,7 +49,7 @@ class SQLObject < MassObject
     WHERE id = ?
     SQL
 
-    query
+    new(query.first)
   end
 
   def create
