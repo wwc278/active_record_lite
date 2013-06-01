@@ -78,12 +78,10 @@ module Associatable
 
   def belongs_to(name, params = {})
     define_method(name) do
-
-      @aasoc_params[name] = BelongsToAssocParams.new(name, params)
-      aps = aasoc_params[name]
-      #p self.send(foreign_key)
-      #p other_class.send(:find, 1)
-
+      
+      aps = BelongsToAssocParams.new(name, params)
+      
+      SQLObject.assoc_params[name] = aps
 
       query = DBConnection.execute(<<-SQL)
       SELECT *
@@ -101,11 +99,11 @@ module Associatable
     define_method(name) do
 
       aps = HasManyAssocParams.new(name, params, self.class)
-
+      
       query = DBConnection.execute(<<-SQL)
       SELECT *
       FROM #{aps.other_table}
-      -- WHERE #{aps.primary_key} = #{aps.other_table}.#{aps.foreign_key}
+    WHERE #{self.send(aps.primary_key)} = #{aps.other_table}.#{aps.foreign_key}
 
       SQL
 
@@ -116,11 +114,33 @@ module Associatable
   def has_one_through(name, assoc1, assoc2)
     #has_one house, :through human, :source house
     define_method(name) do
+      
+      assoc1_class = assoc1.to_s.camelize.constantize # Human
+      assoc2_class = assoc2.to_s.camelize.constantize # House
+      
+      assoc1_object = self.send(assoc1).first #cat.human
+      assoc2_object = assoc1_object.send(assoc2) #human.house
+      
+      aps = SQLObject.assoc_params
+      assoc2_table = aps[assoc2].other_table # houses
+      assoc1_table = aps[assoc1].other_table # humans
+      
+      assoc2_foreign_key = aps[assoc2].foreign_key # :house_id
+      assoc2_primary_key = aps[assoc2].primary_key # :id
+      
+      assoc1_foreign_key = aps[assoc1].foreign_key # :owner_id
+      assoc1_primary_key = aps[assoc1].primary_key # :id
+      
+      query = DBConnection.execute(<<-SQL)
+      SELECT #{assoc2_table}.*
+      FROM #{assoc2_table}
+      JOIN #{assoc1_table}
+      ON #{assoc1_table}.#{assoc2_foreign_key} = #{assoc2_table}.#{assoc2_primary_key}
+    WHERE #{assoc1_table}.#{assoc1_primary_key} = #{self.send(assoc1_foreign_key)}
 
-      p @aasoc_params
-      p [aps1.primary_key, aps1.other_table, aps1.foreign_key, aps1.other_class]
+      SQL
 
-
+      assoc2_class.parse_all(query)
     end
 
   end
